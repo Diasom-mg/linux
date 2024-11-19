@@ -88,6 +88,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 	char *sname;
 	void *buf;
 
+	dev_err(dev, "iio hwmon probe name %s \n", dev->init_name);
 	channels = devm_iio_channel_get_all(dev);
 	if (IS_ERR(channels)) {
 		ret = PTR_ERR(channels);
