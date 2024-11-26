@@ -1,0 +1,31 @@
+diff a/drivers/gpu/drm/rockchip/dw_hdmi-rockchip.c b/drivers/gpu/drm/rockchip/dw_hdmi-rockchip.c	(rejected hunks)
+@@ -430,6 +509,29 @@ static void dw_hdmi_rk3328_setup_hpd(struct dw_hdmi *dw_hdmi, void *data)
+ 			      RK3328_HDMI_HPD_IOE));
+ }
+ 
++static enum drm_connector_status
++dw_hdmi_rk3588_read_hpd(struct dw_hdmi *dw_hdmi, void *data)
++{
++	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
++	u32 val;
++
++	regmap_read(hdmi->regmap, RK3588_GRF_SOC_STATUS1, &val);
++
++	return val & RK3588_HDMI0_LEVEL_INT ?
++		connector_status_connected : connector_status_disconnected;
++}
++
++static void dw_hdmi_rk3588_setup_hpd(struct dw_hdmi *dw_hdmi, void *data)
++{
++	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
++
++	regmap_write(hdmi->regmap,
++		     RK3588_GRF_SOC_CON2,
++		     HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_CLR,
++				   RK3588_HDMI0_HPD_INT_CLR |
++				   RK3588_HDMI0_HPD_INT_MSK));
++}
++
+ static const struct dw_hdmi_phy_ops rk3228_hdmi_phy_ops = {
+ 	.init		= dw_hdmi_rockchip_genphy_init,
+ 	.disable	= dw_hdmi_rockchip_genphy_disable,
