@@ -94,10 +94,22 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	iio-hwmon {
-		compatible = "iio-hwmon";
-		io-channels = <&saradc 2>, <&saradc 3>, <&saradc 4>, <&saradc 5>, <&saradc 6>;
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		label = "HDMI";
+		type = "a";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi_connector_out>;
+			};
+		};
 	};
+
+	// iio-hwmon {
+	// 	compatible = "iio-hwmon";
+	// 	io-channels = <&saradc 2>, <&saradc 3>, <&saradc 4>, <&saradc 5>, <&saradc 6>;
+	// };
 };
 
 &combphy0_ps {
@@ -164,6 +176,12 @@
 &hdmi0_in {
 	hdmi0_in_vp0: endpoint {
 		remote-endpoint = <&vp0_out_hdmi>;
+	};
+};
+
+&hdmi0_out {
+	hdmi_connector_out: endpoint {
+		remote-endpoint = <&hdmi_connector_in>;
 	};
 };
 
@@ -359,13 +377,13 @@
 // 	};
 // };
 
-// &pcie2x1l0 {
-// 	pinctrl-names = "default";
-// 	pinctrl-0 = <&pcie2_0_rst>;
-// 	reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
-// 	vpcie3v3-supply = <&vcc3v3_pcie2x1l0>;
-// 	status = "okay";
-// };
+&pcie2x1l0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie2_0_rst>;
+	reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie2x1l0>;
+	status = "okay";
+};
 
 // &pcie2x1l2 {
 // 	pinctrl-names = "default";
