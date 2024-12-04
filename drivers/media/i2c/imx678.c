@@ -2835,7 +2835,7 @@ static int imx678_get_pad_format(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *framefmt;
 
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		fmt->format = *framefmt;
 	} else {
 		imx678_fill_pad_format(imx678, imx678->cur_mode, fmt);
@@ -3108,10 +3108,11 @@ imx678_find_nearest_frame_interval_mode(struct imx678 *imx678,
  *
  * Return: 0 on success
  */
-static int imx678_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int imx678_s_frame_interval(struct v4l2_subdev *subdev,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *fival)
 {
-	struct imx678 *imx678 = to_imx678(sd);
+	struct imx678 *imx678 = to_imx678(subdev);
 	struct imx678_mode const *mode;
 	int ret;
 
@@ -3121,10 +3122,10 @@ static int imx678_s_frame_interval(struct v4l2_subdev *sd,
 
 	mutex_lock(&imx678->mutex);
 
-	ret = imx678_find_nearest_frame_interval_mode(imx678, fi, &mode);
+	ret = imx678_find_nearest_frame_interval_mode(imx678, fival, &mode);
 
 	if (ret == 0) {
-		fi->interval = mode->frame_interval;
+		fival->interval = mode->frame_interval;
 		if (compare_imx678_mode(mode, imx678->cur_mode)) {
 			imx678->cur_mode = mode;
 			imx678->vblank = mode->vblank;
@@ -3138,13 +3139,14 @@ static int imx678_s_frame_interval(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static int imx678_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int imx678_g_frame_interval(struct v4l2_subdev *subdev,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *fival)
 {
-	struct imx678 *imx678 = to_imx678(sd);
+	struct imx678 *imx678 = to_imx678(subdev);
 
 	mutex_lock(&imx678->mutex);
-	fi->interval = imx678->cur_mode->frame_interval;
+	fival->interval = imx678->cur_mode->frame_interval;
 	mutex_unlock(&imx678->mutex);
 
 	return 0;
@@ -3256,21 +3258,24 @@ done_endpoint_free:
 /* V4l2 subdevice ops */
 static const struct v4l2_subdev_video_ops imx678_video_ops = {
 	.s_stream = imx678_set_stream,
-	.s_frame_interval = imx678_s_frame_interval,
-	.g_frame_interval = imx678_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops imx678_pad_ops = {
-	.init_cfg = imx678_init_pad_cfg,
 	.enum_mbus_code = imx678_enum_mbus_code,
 	.enum_frame_size = imx678_enum_frame_size,
 	.get_fmt = imx678_get_pad_format,
 	.set_fmt = imx678_set_pad_format,
+	.get_frame_interval = imx678_g_frame_interval,
+	.set_frame_interval = imx678_s_frame_interval,
 };
 
 static const struct v4l2_subdev_ops imx678_subdev_ops = {
 	.video = &imx678_video_ops,
 	.pad = &imx678_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops imx678_internal_ops = {
+	.init_state = imx678_init_pad_cfg,
 };
 
 /**
@@ -3455,6 +3460,7 @@ static int imx678_probe(struct i2c_client *client)
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx678->sd, client, &imx678_subdev_ops);
+	imx678->sd.internal_ops = &imx678_internal_ops;
 
 	ret = imx678_parse_hw_config(imx678);
 	if (ret) {
@@ -3538,7 +3544,7 @@ error_mutex_destroy:
  *
  * Return: 0 if successful, error code otherwise.
  */
-static int imx678_remove(struct i2c_client *client)
+static void imx678_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct imx678 *imx678 = to_imx678(sd);
@@ -3551,8 +3557,6 @@ static int imx678_remove(struct i2c_client *client)
 	pm_runtime_suspended(&client->dev);
 
 	mutex_destroy(&imx678->mutex);
-
-	return 0;
 }
 
 static const struct dev_pm_ops imx678_pm_ops = { SET_RUNTIME_PM_OPS(
@@ -3566,7 +3570,7 @@ static const struct of_device_id imx678_of_match[] = {
 MODULE_DEVICE_TABLE(of, imx678_of_match);
 
 static struct i2c_driver imx678_driver = {
-	.probe_new = imx678_probe,
+	.probe = imx678_probe,
 	.remove = imx678_remove,
 	.driver = {
 		.name = "imx678",
